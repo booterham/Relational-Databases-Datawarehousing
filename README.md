@@ -6,7 +6,11 @@ Lesopnames van vorig jaar zijn enkel ter aanvulling.
 ## Oefeningen
 | Bestand | Soort | Status |
 | --- | --- | --- | 
-| 1a | | |
+| 1. | Review SELECT | 💚 |
+| 1a | Starter - Tijdens slides | 💚 | 
+| 1b | Review GROUP BY | 💚 | 
+| 1c | Review JOIN | 💚 |
+| --- | --- | --- |
 
 ## Examen
 40% gesloten boek op papier.
