@@ -1,26 +1,26 @@
 /* Window functions */
 
 /*
-• Often business managers want to compare current sales to previous sales
-• Previous sales can be:
-– sales during the previous month
-– average sales during the last three months
-– last year’s sales until current date (year-to-date)
-• Window functions offer a solution to these kind of problems in a single, efficient SQL query
-• Introduced in SQL: 2003
+? Often business managers want to compare current sales to previous sales
+? Previous sales can be:
+? sales during the previous month
+? average sales during the last three months
+? last year?s sales until current date (year-to-date)
+? Window functions offer a solution to these kind of problems in a single, efficient SQL query
+? Introduced in SQL: 2003
 
 OVER clause
-• Results of a SELECT are partitioned
-• Numbering, ordering and aggregate functions per partition
-• The OVER clauses creates partitions and ordering
-• The partition behaves as a window that shifts over the data
-• The OVER clause can be used with standard aggregate functions
-(sum, avg, …) or specific window functions (rank, lag,…)
+? Results of a SELECT are partitioned
+? Numbering, ordering and aggregate functions per partition
+? The OVER clauses creates partitions and ordering
+? The partition behaves as a window that shifts over the data
+? The OVER clause can be used with standard aggregate functions
+(sum, avg, ?) or specific window functions (rank, lag,?)
 
 */
 
 -- Example
--- Make an overview of the UnitsInStock per Category and per Product
+-- Make an overview of the UnitsInStock   per Category and per Product
 SELECT CategoryID, ProductID, UnitsInStock
 FROM Products
 order by CategoryID, ProductID
@@ -66,12 +66,12 @@ ANTON	2018	7
 24	G'day, Mate					Australia	2
 10	Refrescos Americanas LTDA	Brazil	1
 25	Ma Maison					Canada	1
-29	Forêts d'érables			Canada	2
+29	For?ts d'?rables			Canada	2
 21	Lyngbysild					Denmark	1
 23	Karkki Oy					Finland	1
-18	Aux joyeux ecclésiastiques	France	1
+18	Aux joyeux eccl?siastiques	France	1
 27	Escargots Nouveaux			France	2
-28	Gai pâturage				France	3
+28	Gai p?turage				France	3
 ...
 */
 
@@ -89,7 +89,7 @@ The previous query works with the default window: start of resultset to current 
 
 -- the previous query is the shorter version of the following query. Exactly the same resultset!
 SELECT CategoryID, ProductID, UnitsInStock,
-SUM(UnitsInStock) OVER (PARTITION BY CategoryID ORDER BY ProductID RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) TotalUnitsInStockPerCategory
+SUM(UnitsInStock) OVER (PARTITION BY CategoryID ORDER BY ProductID   RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) TotalUnitsInStockPerCategory
 FROM Products
 
 
@@ -105,19 +105,19 @@ PARTITION is optional, ORDER BY is mandatory
 
 -- RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
 SELECT CategoryID, ProductID, UnitsInStock,
-SUM(UnitsInStock) OVER (PARTITION BY CategoryID ORDER BY  ProductID RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) TotalUnitsInStockPerCategory
+SUM(UnitsInStock) OVER (PARTITION BY CategoryID   ORDER BY  ProductID   RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) TotalUnitsInStockPerCategory
 FROM Products
 
 
 -- RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING 
 SELECT CategoryID, ProductID, UnitsInStock,
-SUM(UnitsInStock) OVER (PARTITION BY CategoryID ORDER BY ProductID RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) TotalUnitsInStockPerCategory
+SUM(UnitsInStock) OVER (PARTITION BY CategoryID   ORDER BY ProductID   RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) TotalUnitsInStockPerCategory
 FROM Products
 
 
 -- RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
 SELECT CategoryID, ProductID, UnitsInStock,
-SUM(UnitsInStock) OVER (PARTITION BY CategoryID ORDER BY ProductID RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) TotalUnitsInStockPerCategory
+SUM(UnitsInStock) OVER (PARTITION BY CategoryID   ORDER BY ProductID   RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) TotalUnitsInStockPerCategory
 FROM Products
 
 
@@ -229,8 +229,8 @@ FROM Employees
 
 /* LAG */
 /*
-LAG refers to the previous line. This is short for LAG(…, 1)
-LAG(…, 2) refers to the line before the previous line, …
+LAG refers to the previous line. This is short for LAG(?, 1)
+LAG(?, 2) refers to the line before the previous line, ?
 */
 
 -- Calculate for each employee the difference in salary between this employee and the employee preceding him
@@ -240,8 +240,8 @@ FROM Employees
 
 /* LEAD */
 /*
-LEAD refers to the next line. This is short for LEAD(…, 1)
-LEAD(…, 2) refers to the line after the next line, …
+LEAD refers to the next line. This is short for LEAD(?, 1)
+LEAD(?, 2) refers to the line after the next line, ?
 */
 
 
@@ -258,13 +258,13 @@ FROM Employees
 /*
 country		rownum	CompanyName
 Argentina	1		Cactus Comidas para llevar
-Argentina	2		Océano Atlántico Ltda.
+Argentina	2		Oc?ano Atl?ntico Ltda.
 Argentina	3		Rancho grande
 Austria		1		Ernst Handel
 Austria		2		Piccolo und mehr
 Belgium		1		Maison Dewey
-Belgium		2		Suprêmes délices
-Brazil		1		Comércio Mineiro
+Belgium		2		Supr?mes d?lices
+Brazil		1		Com?rcio Mineiro
 Brazil		2		Familia Arquibaldo
 Brazil		3		Gourmet Lanchonetes
 Brazil		4		Hanari Carnes
@@ -352,7 +352,7 @@ Brazil		4		Hanari Carnes
 
 -- Exercise 5: 
 -- Imagine there is a bonussystem for all the employees: the best employee gets 10 000EUR bonus, 
--- the second one 5000 EUR, the third one 3333 EUR, …
+-- the second one 5000 EUR, the third one 3333 EUR, ?
 -- Let's calculate the bonus for each employee, based on the revenue per year per employee
 -- Step 1: First create an overview of the revenue (unitprice * quantity) per year per employeeid
 /*
@@ -391,7 +391,7 @@ Brazil		4		Hanari Carnes
 
 
 -- Step 3: Imagine there is a bonussystem for all the employees: the best employee gets 10 000EUR bonus, 
--- the second one 5000 EUR, the third one 3333 EUR, …
+-- the second one 5000 EUR, the third one 3333 EUR, ?
 
 /*
 4	2016	53114,80	10000

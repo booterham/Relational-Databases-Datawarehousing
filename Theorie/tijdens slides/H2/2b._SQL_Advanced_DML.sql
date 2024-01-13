@@ -159,8 +159,8 @@ UPDATE ShippersUpdate SET Phone = '(503) 555-4512' WHERE ShipperID = 1
 DELETE FROM ShippersUpdate WHERE shipperID = 4
 
 
-SELECT * FROMShippers;
-SELECT * FROMShippersUpdate;
+SELECT * FROM Shippers;
+SELECT * FROM ShippersUpdate;
 
 
 
@@ -169,8 +169,8 @@ BEGIN TRANSACTION
 INSERT INTO Shippers
 VALUES ('PostNL', '(503) 555-1236')
 
-SELECT * FROMShippers;
-SELECT * FROMShippersUpdate;
+SELECT * FROM Shippers;
+SELECT * FROM ShippersUpdate;
 
 MERGE Shippers as t	-- t = target
 USING ShippersUpdate as s -- s = source
