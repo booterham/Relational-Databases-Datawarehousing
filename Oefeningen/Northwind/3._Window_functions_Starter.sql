@@ -3,10 +3,10 @@
 /*
 ? Often business managers want to compare current sales to previous sales
 ? Previous sales can be:
-? sales during the previous month
-? average sales during the last three months
-? last year?s sales until current date (year-to-date)
-? Window functions offer a solution to these kind of problems in a single, efficient SQL query
+  ? sales during the previous month
+  ? average sales during the last three months
+  ? last year's sales until current date (year-to-date)
+  ? Window functions offer a solution to these kind of problems in a single, efficient SQL query
 ? Introduced in SQL: 2003
 
 OVER clause
@@ -27,11 +27,13 @@ order by CategoryID, ProductID
 
 -- Add an extra column to calculate the running total of UnitsInStock per Category
 -- Solution 1 -> correlated subquery
-SELECT CategoryID, ProductID, UnitsInStock,
-(SELECT SUM(UnitsInStock) 
- FROM Products 
- WHERE CategoryID = p.CategoryID  
-  and ProductID <= p.ProductID) TotalUnitsInStockPerCategory
+SELECT CategoryID,
+       ProductID,
+       UnitsInStock,
+       (SELECT SUM(UnitsInStock)
+        FROM Products
+        WHERE CategoryID = p.CategoryID
+          and ProductID <= p.ProductID) TotalUnitsInStockPerCategory
 FROM Products p
 order by CategoryID, ProductID;
 
@@ -40,8 +42,10 @@ order by CategoryID, ProductID;
 
 -- Solution 2 -> OVER clause => simpler + more efficient
 -- The sum is calculated for each partition
-SELECT CategoryID, ProductID, UnitsInStock,
-SUM(UnitsInStock) OVER (PARTITION BY CategoryID ORDER BY ProductID) TotalUnitsInStockPerCategory
+SELECT CategoryID,
+       ProductID,
+       UnitsInStock,
+       SUM(UnitsInStock) OVER (PARTITION BY CategoryID ORDER BY ProductID) TotalUnitsInStockPerCategory
 FROM Products
 
 
@@ -57,7 +61,6 @@ ANTON	2017	6
 ANTON	2018	7
 ...
 */
-
 
 
 -- Give the cumulative number of Suppliers for each country
@@ -76,11 +79,6 @@ ANTON	2018	7
 */
 
 
-
-
-
-
-
 /* RANGE */
 /*
 Real meaning of window functions: apply to a window that shifts over the result set
@@ -88,11 +86,12 @@ The previous query works with the default window: start of resultset to current 
 */
 
 -- the previous query is the shorter version of the following query. Exactly the same resultset!
-SELECT CategoryID, ProductID, UnitsInStock,
-SUM(UnitsInStock) OVER (PARTITION BY CategoryID ORDER BY ProductID   RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) TotalUnitsInStockPerCategory
+SELECT CategoryID,
+       ProductID,
+       UnitsInStock,
+       SUM(UnitsInStock)
+           OVER (PARTITION BY CategoryID ORDER BY ProductID RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) TotalUnitsInStockPerCategory
 FROM Products
-
-
 
 
 /*
@@ -104,22 +103,30 @@ PARTITION is optional, ORDER BY is mandatory
 */
 
 -- RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-SELECT CategoryID, ProductID, UnitsInStock,
-SUM(UnitsInStock) OVER (PARTITION BY CategoryID   ORDER BY  ProductID   RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) TotalUnitsInStockPerCategory
+SELECT CategoryID,
+       ProductID,
+       UnitsInStock,
+       SUM(UnitsInStock)
+           OVER (PARTITION BY CategoryID ORDER BY ProductID RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) TotalUnitsInStockPerCategory
 FROM Products
 
 
 -- RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING 
-SELECT CategoryID, ProductID, UnitsInStock,
-SUM(UnitsInStock) OVER (PARTITION BY CategoryID   ORDER BY ProductID   RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) TotalUnitsInStockPerCategory
+SELECT CategoryID,
+       ProductID,
+       UnitsInStock,
+       SUM(UnitsInStock)
+           OVER (PARTITION BY CategoryID ORDER BY ProductID RANGE BETWEEN CURRENT ROW AND UNBOUNDED FOLLOWING) TotalUnitsInStockPerCategory
 FROM Products
 
 
 -- RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING
-SELECT CategoryID, ProductID, UnitsInStock,
-SUM(UnitsInStock) OVER (PARTITION BY CategoryID   ORDER BY ProductID   RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) TotalUnitsInStockPerCategory
+SELECT CategoryID,
+       ProductID,
+       UnitsInStock,
+       SUM(UnitsInStock)
+           OVER (PARTITION BY CategoryID ORDER BY ProductID RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) TotalUnitsInStockPerCategory
 FROM Products
-
 
 
 -- Give for each customer for each year the number of orders and the total number over orders over all years using PARTITION BY
@@ -140,9 +147,13 @@ BERGS	2017	10	18
 BERGS	2018	5	18
 ...
 */
-
-
-
+SELECT distinct CustomerID,
+                year(OrderDate) as                                                Jaar,
+                count(OrderID) OVER (PARTITION BY CustomerID, year(OrderDate) order by CustomerID)
+                                                                                  AankopenDitJaar,
+                count(OrderID) over (partition by CustomerID order by CustomerID) TotaalAantalAankopen
+FROM Orders
+order by CustomerID, Jaar
 
 
 -- Give the relative number of Customers for each country using PARTITION BY
@@ -160,11 +171,28 @@ Ireland	1.10%
 */
 
 -- Step 1: Calculate for each country the number of customers for this country and the total number of customers using PARTITION BY
+select Country,
+       count(CustomerID) over ( order by Country )                                              as AmountOfCustomers,
+       count(CustomerID)
+             over ( order by Country rows between unbounded preceding and unbounded following ) as TotalAmountOfCustomers
+from Customers;
+
 -- Step 2: Calculate the relative number of customers per country
+with Verdeling as (select Country,
+                          count(CustomerID) over ( order by Country )                                              as AmountOfCustomers,
+                          count(CustomerID)
+                                over ( order by Country rows between unbounded preceding and unbounded following ) as TotalAmountOfCustomers
+                   from Customers)
+select distinct Country, format(cast(AmountOfCustomers as numeric) / TotalAmountOfCustomers, 'p') as CustomersFromHere
+from Verdeling
+
 
 -- Alternative??
-
-
+SELECT Country,
+       format(cast(COUNT(*) as numeric) / SUM(COUNT(*)) OVER (), 'p') AS PercentageOfTotalCustomers
+FROM Customers
+GROUP BY Country;
+-- OFCOURSE GEWOON HET GEMAKKELIJKE DAT IK AL KENDE
 
 
 /* ROWS */
@@ -179,17 +207,26 @@ In this scenario, you would specify ROWS instead of RANGE. This gives you three 
 
 -- Make an overview of the salary per employee and the average salary of this employee and the 2 employees preceding him
 
-SELECT EmployeeID, FirstName + ' ' + LastName As FullName,  Salary, AVG(Salary) OVER (ORDER BY Salary DESC ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) As AvgSalary2Preceding
+SELECT EmployeeID,
+       FirstName + ' ' + LastName                                                       As FullName,
+       Salary,
+       AVG(Salary) OVER (ORDER BY Salary DESC ROWS BETWEEN 2 PRECEDING AND CURRENT ROW) As AvgSalary2Preceding
 FROM Employees
 
 -- Make an overview of the salary per employee and the average salary of this employee and the 2 employees following him
 
-SELECT EmployeeID, FirstName + ' ' + LastName As FullName,  Salary, AVG(Salary) OVER (ORDER BY Salary DESC ROWS BETWEEN CURRENT ROW AND 2 FOLLOWING) As AvgSalary2Following
+SELECT EmployeeID,
+       FirstName + ' ' + LastName                                                       As FullName,
+       Salary,
+       AVG(Salary) OVER (ORDER BY Salary DESC ROWS BETWEEN CURRENT ROW AND 2 FOLLOWING) As AvgSalary2Following
 FROM Employees
 
 -- Make an overview of the salary per employee and the average salary of this employee and the employee preceding and following him
 
-SELECT EmployeeID, FirstName + ' ' + LastName As FullName,  Salary, AVG(Salary) OVER (ORDER BY Salary DESC ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) As AvgSalary1Preceding1Following
+SELECT EmployeeID,
+       FirstName + ' ' + LastName                                                       As FullName,
+       Salary,
+       AVG(Salary) OVER (ORDER BY Salary DESC ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING) As AvgSalary1Preceding1Following
 FROM Employees
 
 
@@ -210,21 +247,26 @@ PERCENT_RANK() shows the ranking on a scale from 0 - 1
 */
 
 -- Give ROW_NUMBER / RANK / DENSE_RANK / PERCENT_RANK for each employee based on his salary
-SELECT EmployeeID, FirstName + ' ' + LastName As 'Full Name', Title, Salary,
-ROW_NUMBER() OVER (ORDER BY Salary DESC) As 'ROW_NUMBER',
-RANK() OVER (ORDER BY Salary DESC) AS 'RANK',
-DENSE_RANK() OVER (ORDER BY Salary DESC) AS 'DENSE_RANK',
-PERCENT_RANK() OVER (ORDER BY Salary DESC) AS 'PERCENT_RANK'
+SELECT EmployeeID,
+       FirstName + ' ' + LastName                 As 'Full Name',
+       Title,
+       Salary,
+       ROW_NUMBER() OVER (ORDER BY Salary DESC)   As 'ROW_NUMBER',
+       RANK() OVER (ORDER BY Salary DESC)         AS 'RANK',
+       DENSE_RANK() OVER (ORDER BY Salary DESC)   AS 'DENSE_RANK',
+       PERCENT_RANK() OVER (ORDER BY Salary DESC) AS 'PERCENT_RANK'
 FROM Employees
 
 -- Give ROW_NUMBER / RANK / DENSE_RANK / PERCENT_RANK per title for each employee based on his salary
-SELECT EmployeeID, FirstName + ' ' + LastName As 'Full Name', Title, Salary,
-ROW_NUMBER() OVER (PARTITION BY Title ORDER BY Salary DESC) As 'ROW_NUMBER',
-RANK() OVER (PARTITION BY Title ORDER BY Salary DESC) AS 'RANK',
-DENSE_RANK() OVER (PARTITION BY Title ORDER BY Salary DESC) AS 'DENSE_RANK',
-PERCENT_RANK() OVER (PARTITION BY Title ORDER BY Salary DESC) AS 'PERCENT_RANK'
+SELECT EmployeeID,
+       FirstName + ' ' + LastName                                    As 'Full Name',
+       Title,
+       Salary,
+       ROW_NUMBER() OVER (PARTITION BY Title ORDER BY Salary DESC)   As 'ROW_NUMBER',
+       RANK() OVER (PARTITION BY Title ORDER BY Salary DESC)         AS 'RANK',
+       DENSE_RANK() OVER (PARTITION BY Title ORDER BY Salary DESC)   AS 'DENSE_RANK',
+       PERCENT_RANK() OVER (PARTITION BY Title ORDER BY Salary DESC) AS 'PERCENT_RANK'
 FROM Employees
-
 
 
 /* LAG */
@@ -234,7 +276,10 @@ LAG(?, 2) refers to the line before the previous line, ?
 */
 
 -- Calculate for each employee the difference in salary between this employee and the employee preceding him
-SELECT EmployeeID, FirstName + ' ' + LastName,  Salary, (LAG(Salary) OVER (ORDER BY Salary DESC) - Salary) As EarnsLessThanPreceding
+SELECT EmployeeID,
+       FirstName + ' ' + LastName,
+       Salary,
+       (LAG(Salary) OVER (ORDER BY Salary DESC) - Salary) As EarnsLessThanPreceding
 FROM Employees
 
 
@@ -246,7 +291,10 @@ LEAD(?, 2) refers to the line after the next line, ?
 
 
 -- Calculate for each employee the difference in salary between this employee and the employee following him
-SELECT EmployeeID, FirstName + ' ' + LastName,  Salary, (Salary - LEAD(Salary) OVER (ORDER BY Salary DESC)) As EarnsMoreThanFollowing
+SELECT EmployeeID,
+       FirstName + ' ' + LastName,
+       Salary,
+       (Salary - LEAD(Salary) OVER (ORDER BY Salary DESC)) As EarnsMoreThanFollowing
 FROM Employees
 
 
@@ -270,8 +318,8 @@ Brazil		3		Gourmet Lanchonetes
 Brazil		4		Hanari Carnes
 ...
 */
-
-
+select Country, row_number() over (partition by Country order by CompanyName), CompanyName
+from Customers
 
 -- Exercise 2
 -- We want to calculate the year over year perfomance for each product.
@@ -288,10 +336,13 @@ Brazil		4		Hanari Carnes
 3	2018	108	
 ...
 */
+select distinct ProductID,
+                year(OrderDate)                                                                  as orderYear,
+                sum(Quantity) over ( partition by ProductID, year(OrderDate) order by ProductID) as totalQuantity
+from OrderDetails od
+         left join Orders ord on od.OrderID = ord.OrderID
 
-
-
--- Step 2: Turn the previous query into a CTE. 
+-- Step 2: Turn the previous query into a CTE.
 -- Now create an overview that shows for each productid the amount sold per year and for the previous year.
 /*
 1	2016	125	NULL
@@ -305,10 +356,20 @@ Brazil		4		Hanari Carnes
 3	2018	108	190
 ...
 */
+with quantityPerYear as (select distinct ProductID,
+                                         year(OrderDate)                                                        as orderYear,
+                                         sum(Quantity)
+                                             over ( partition by ProductID, year(OrderDate) order by ProductID) as totalQuantity
+                         from OrderDetails od
+                                  left join Orders ord on od.OrderID = ord.OrderID)
+select cur.ProductID,
+       cur.orderYear,
+       cur.totalQuantity  as totalQuantityThisYear,
+       last.totalQuantity as totalQuantityLastYear
+from quantityPerYear cur
+         left join quantityPerYear last on cur.ProductID = last.ProductID and cur.orderYear = last.orderYear + 1
 
-
-
--- Step 3: Use a CTE and the previous SQL Query to calculate the year over year performance for each productid. 
+-- Step 3: Use a CTE and the previous SQL Query to calculate the year over year performance for each productid.
 -- If the amountPreviousYear is NULL, then the year over year performance becomes N/A. Use the function IFNULL
 
 /*
@@ -323,17 +384,46 @@ Brazil		4		Hanari Carnes
 3	2018	108	190	-43.16%
 ...
 */
-
+with quantityPerYear as (select distinct ProductID,
+                                         year(OrderDate)                                                        as orderYear,
+                                         sum(Quantity)
+                                             over ( partition by ProductID, year(OrderDate) order by ProductID) as totalQuantity
+                         from OrderDetails od
+                                  left join Orders ord on od.OrderID = ord.OrderID),
+     quantityComparison as (select cur.ProductID,
+                                   cur.orderYear,
+                                   cur.totalQuantity  as totalQuantityThisYear,
+                                   last.totalQuantity as totalQuantityLastYear
+                            from quantityPerYear cur
+                                     left join quantityPerYear last
+                                               on cur.ProductID = last.ProductID and cur.orderYear = last.orderYear + 1)
+select *,
+       isnull(format((cast(totalQuantityThisYear as numeric) - totalQuantityLastYear) / totalQuantityLastYear, 'p'),
+              'N/A')
+from quantityComparison;
 
 -- Exercise 3
 -- Which is the most popular shipper
 -- Step 1: Use a CTE and add DENSE_RANK
+with totalOrders as (select ShipperID, CompanyName, count(OrderID) as totalAmount
+                     from orders
+                              left join Shippers on orders.ShipVia = Shippers.ShipperID
+                     group by ShipperID, CompanyName)
+select *, dense_rank() over (order by totalAmount desc) as rankNumber
+from totalOrders;
+
 -- Step 2: FILTER on DENSE_RANK = 1
 
 -- ShipperID	CompanyName	ShipVia	NumberOfOrders	DENSE_RANK
 -- 2	United Package	2	326	1
-
-
+with totalOrders as (select ShipperID, CompanyName, count(OrderID) as totalAmount
+                     from orders
+                              left join Shippers on orders.ShipVia = Shippers.ShipperID
+                     group by ShipperID, CompanyName),
+     numberedShippers as (select *, dense_rank() over (order by totalAmount desc) as rankNumber from totalOrders)
+select *
+from numberedShippers
+where rankNumber = 1
 
 -- Exercise 4
 -- Which is the TOP 3 of countries in which most customers live?
@@ -346,12 +436,19 @@ Brazil		4		Hanari Carnes
 --France	11	2
 --Germany	11	2
 --Brazil	9	3
+with customersPerCountry as (select distinct Country,
+                                             count(CustomerID) over ( partition by Country) as CustomersFromCountry
+                             from Customers),
+     rankPerCountry as (select *, dense_rank() over (order by CustomersFromCountry desc) as rankNUmber
+                        from customersPerCountry)
+select *
+from rankPerCountry
+where rankNUmber <= 3
+order by rankNUmber
 
 
-
-
--- Exercise 5: 
--- Imagine there is a bonussystem for all the employees: the best employee gets 10 000EUR bonus, 
+-- Exercise 5:
+-- Imagine there is a bonussystem for all the employees: the best employee gets 10 000 EUR bonus,
 -- the second one 5000 EUR, the third one 3333 EUR, ?
 -- Let's calculate the bonus for each employee, based on the revenue per year per employee
 -- Step 1: First create an overview of the revenue (unitprice * quantity) per year per employeeid
@@ -370,8 +467,15 @@ Brazil		4		Hanari Carnes
 4	2018	57594,95
 ...
 */
-
-
+with revenuePerOrder as (select year(OrderDate)                                  as orderYear,
+                                EmployeeID,
+                                convert(decimal(10, 2), UnitPrice * Quantity, 2) as revenue
+                         from OrderDetails od
+                                  left join Orders ord on od.OrderID = ord.OrderID)
+select EmployeeID, orderYear, sum(revenue) as totalrevenue
+from revenuePerOrder
+group by orderYear, EmployeeID
+order by EmployeeID;
 
 
 -- Step 2: Now add a ranking per year per employeeid
@@ -387,10 +491,18 @@ Brazil		4		Hanari Carnes
 9	2016	11365,70	9
 ...
 */
+with revenuePerOrder as (select year(OrderDate)                                  as orderYear,
+                                EmployeeID,
+                                convert(decimal(10, 2), UnitPrice * Quantity, 2) as revenue
+                         from OrderDetails od
+                                  left join Orders ord on od.OrderID = ord.OrderID),
+     totalRevenuePerYear as (select EmployeeID, orderYear, sum(revenue) as totalrevenue
+                             from revenuePerOrder
+                             group by orderYear, EmployeeID)
+select *, dense_rank() over (partition by orderYear order by totalrevenue desc) as positionPerYear
+from totalRevenuePerYear;
 
-
-
--- Step 3: Imagine there is a bonussystem for all the employees: the best employee gets 10 000EUR bonus, 
+-- Step 3: Imagine there is a bonussystem for all the employees: the best employee gets 10 000EUR bonus,
 -- the second one 5000 EUR, the third one 3333 EUR, ?
 
 /*
@@ -405,11 +517,21 @@ Brazil		4		Hanari Carnes
 9	2016	11365,70	1111
 ...
 */
+with revenuePerOrder as (select year(OrderDate)                                  as orderYear,
+                                EmployeeID,
+                                convert(decimal(10, 2), UnitPrice * Quantity, 2) as revenue
+                         from OrderDetails od
+                                  left join Orders ord on od.OrderID = ord.OrderID),
+     totalRevenuePerYear as (select EmployeeID, orderYear, sum(revenue) as totalrevenue
+                             from revenuePerOrder
+                             group by orderYear, EmployeeID)
+select *,
+       convert(decimal, round(
+               cast(10000 as decimal) / dense_rank() over (partition by orderYear order by totalrevenue desc),
+               0)) as positionPerYear
+from totalRevenuePerYear;
 
-
-
-
--- Exercise 6 
+-- Exercise 6
 -- Calculate for each month the percentage difference between the revenue for this month and the previous month
 /*
 2016	7	30192,10	NULL	NULL
@@ -430,13 +552,44 @@ Brazil		4		Hanari Carnes
 */
 
 -- Step 1: calculate the revenue per year and per month
-
+select distinct year(OrderDate)                                                                  as orderYear,
+                month(OrderDate)                                                                 as orderMonth,
+                sum(UnitPrice * Quantity) over ( partition by year(OrderDate), month(OrderDate)) as revenuePerMonth
+from OrderDetails od
+         left join Orders ord on ord.OrderID = od.OrderID;
 
 -- Step 2: Add an extra column for each row with the revenue of the previous month
-
+with revenuePerYearPerMonth as (select distinct year(OrderDate)                                            as orderYear,
+                                                month(OrderDate)                                           as orderMonth,
+                                                sum(UnitPrice * Quantity)
+                                                    over ( partition by year(OrderDate), month(OrderDate)) as revenuePerMonth
+                                from OrderDetails od
+                                         left join Orders ord on ord.OrderID = od.OrderID)
+select cur.orderYear, cur.orderMonth, cur.revenuePerMonth, last.revenuePerMonth
+from revenuePerYearPerMonth cur
+         left join revenuePerYearPerMonth last
+                   on last.orderYear = year(dateadd(month, -1, datefromparts(cur.orderYear, cur.orderMonth, 1))) and
+                      last.orderMonth = month(dateadd(month, -1, datefromparts(cur.orderYear, cur.orderMonth, 1)));
 
 -- Step 3: Calculate the percentage difference between this month and the previous month
-
+with revenuePerYearPerMonth as (select distinct year(OrderDate)                                            as orderYear,
+                                                month(OrderDate)                                           as orderMonth,
+                                                sum(UnitPrice * Quantity)
+                                                    over ( partition by year(OrderDate), month(OrderDate)) as revenuePerMonth
+                                from OrderDetails od
+                                         left join Orders ord on ord.OrderID = od.OrderID),
+     currentAndLastYear as (select cur.orderYear,
+                                   cur.orderMonth,
+                                   cur.revenuePerMonth  as revenueThisMonth,
+                                   last.revenuePerMonth as revenueLastMonth
+                            from revenuePerYearPerMonth cur
+                                     left join revenuePerYearPerMonth last
+                                               on last.orderYear = year(dateadd(month, -1,
+                                                                                datefromparts(cur.orderYear, cur.orderMonth, 1))) and
+                                                  last.orderMonth = month(dateadd(month, -1,
+                                                                                  datefromparts(cur.orderYear, cur.orderMonth, 1))))
+select orderYear, orderMonth, revenueThisMonth, revenueLastMonth, format(cast(revenueThisMonth - revenueLastMonth as numeric) / revenueLastMonth, 'p') as percentageGrowth
+from currentAndLastYear;
 
 
 
