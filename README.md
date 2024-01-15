@@ -17,8 +17,8 @@ Lesopnames van vorig jaar zijn enkel ter aanvulling.
 || 2d | Starter CTE | 💚 |
 || 2d | CoronaDB CTE | 💚 |
 |Window Functions| 3 | Starter WINDOW FUNCTIONS | 💚 |
-|| 3 | CoronaDB WINDOW FUNCTIONS | 🤍 |
-|DB Programming| 4a | Starter STORED PROCEDURES | 💚 |
+|| 3 | CoronaDB WINDOW FUNCTIONS | 💚 |
+|DB Programming| 4a | Starter STORED PROCEDURES | 🤍|
 || 4a | CoronaDB STORED PROCEDURES | 🤍 |
 || 4b | Starter CURSORS | 🤍 |
 || 4b | CoronaDB CURSORS | 🤍 |
