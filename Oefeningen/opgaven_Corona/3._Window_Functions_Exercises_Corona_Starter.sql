@@ -6,6 +6,21 @@
 -- of the days with the most new cases per 100.000 inhabitants
 -- show only the top 5 days per country
 
+with casesPerHundredThousand as (select report_date,
+                                        cd.country,
+                                        (cast(new_cases as decimal) / population) * 100000 as cases_per_100000
+                                 from CovidData cd
+                                          left join Countries c on cd.country = c.country
+                                 where cd.country = 'Belgium'
+                                    or cd.country = 'Netherlands'
+                                    or cd.country = 'France'),
+     rankedCases as
+         (select *, dense_rank() over (partition by country order by cases_per_100000 desc) as rankNumber
+          from casesPerHundredThousand)
+select *
+from rankedCases
+where rankNumber <= 5
+
 /*
 
 report_date	country	cases_per_100000	rank_new_cases
@@ -30,6 +45,19 @@ report_date	country	cases_per_100000	rank_new_cases
 
 -- Part 2
 -- Give the top 10 of countries with more than 1.000.000 inhabitants with the highest number new cases per 100.000 inhabitants
+with maxCaseDays as (select c.country,
+                            max((cast(new_cases as numeric) / population) * 100000) as newCasesPer100000
+                     from CovidData cd
+                              left join Countries c on cd.iso_code = c.iso_code
+                     where population > 1000000
+                     group by c.country),
+     rankedCaseDays as (select distinct country,
+                                        newCasesPer100000,
+                                        dense_rank() over (order by newCasesPer100000 desc) as rankNumber
+                        from maxCaseDays)
+select *
+from rankedCaseDays
+where rankNumber <= 10
 
 /*
 
@@ -48,12 +76,17 @@ Germany	1905.834292113311	10
 */
 
 
-
-
-
--- 2. 
+-- 2.
 -- Make a ranking (high to low) of countries for the total number of deaths until now relative to the number of inhabitants. 
 -- Show the rank number (1,2,3, ...), the country, relative number of deaths
+
+with percentageDeaths as (select c.country,
+                                 max(cast(total_deaths as numeric) / population) as percentThatDied
+                          from CovidData cd
+                                   left join Countries c on cd.iso_code = c.iso_code
+                          group by c.country)
+select *, dense_rank() over (order by percentThatDied desc)
+from percentageDeaths;
 
 /*
 
@@ -73,7 +106,6 @@ Latvia	0.003986	11
 */
 
 
-
 -- 3.
 -- In the press conferences, Sciensano always gives updates on the 
 -- weekly average instead of the absolute numbers, to eliminate weekend, ... effects
@@ -81,6 +113,32 @@ Latvia	0.003986	11
 -- 3.2 Calculate for each day the relative difference with the previous day in Belgium for the weekly average number of new cases
 -- 3.3 Give the day with the highest relative difference of weekly average number of new cases in Belgium
 -- after 2020-04-01
+
+with weeklyDifference as (select report_date,
+                                 new_cases,
+                                 new_deaths,
+                                 avg(cast(new_cases as decimal))
+                                     over ( order by report_date rows between 6 preceding and current row )      as weekly_avg_new_cases,
+                                 avg(cast(new_deaths as decimal))
+                                     over ( order by report_date rows between 6 preceding and current row )      as weekly_avg_new_deaths,
+                                 avg(cast(new_cases as decimal))
+                                     over ( order by report_date rows between 7 preceding and 1 preceding )      as weekly_avg_new_cases_previous,
+                                 abs((avg(cast(new_cases as decimal))
+                                          over ( order by report_date rows between 7 preceding and 1 preceding ) -
+                                      avg(cast(new_cases as decimal))
+                                          over ( order by report_date rows between 6 preceding and current row )) /
+                                     avg(cast(new_cases as decimal))
+                                         over ( order by report_date rows between 6 preceding and current row )) as relative_difference
+                          from CovidData
+                          where iso_code = 'BEL'
+                            and report_date > cast('2020-04-01' as datetime)),
+     weeklyOrderedDifference as
+         (select *, dense_rank() over (order by relative_difference desc) as rankNumber
+          from weeklyDifference)
+select *
+from weeklyOrderedDifference
+where rankNumber = 1
+
 
 /*
 
@@ -97,8 +155,6 @@ report_date				new_cases		new_deaths		weekly_avg_new_cases		weekly_avg_new_death
 */
 
 
-
-
 -- 4
 -- The main reason for the lockdowns was to prevent the hospital system from collapsing
 -- (i.e. too much patients on IC)
@@ -109,6 +165,29 @@ report_date				new_cases		new_deaths		weekly_avg_new_cases		weekly_avg_new_death
 -- Step 3: Calculate the relative difference between each 2 weeks
 -- Step 4: Give those weeks for which the number of hosp_patients rose with 50%
 -- You can use IIF(... = 0, NULL, ...) to solve division by zero problem
+
+with numbered_weeks as (select datepart(week, report_date) as report_week,
+                               datepart(year, report_date) as report_year,
+                               hosp_patients
+                        from CovidData
+                        where iso_code = 'BEL'),
+     hosp_per_week as
+         (select report_week, report_year, avg(hosp_patients) as weekly_hosp
+          from numbered_weeks
+          group by report_week, report_year),
+     hosp_this_and_last_week as
+         (select *, lag(weekly_hosp) over (order by report_year, report_week) as weekly_hosp_previous
+          from hosp_per_week),
+     relativeChangePerWeek as
+         (select *,
+                 case
+                     when weekly_hosp_previous = 0 then null
+                     else abs(cast(weekly_hosp as numeric) - weekly_hosp_previous) /
+                          weekly_hosp_previous end as relative_change
+          from hosp_this_and_last_week)
+select *
+from relativeChangePerWeek
+where relative_change >= 0.5;
 
 /*
 report_week	report_year	avg_number_hosp_patients	avg_number_hosp_patients_previous_week	relative_change
@@ -122,10 +201,20 @@ report_week	report_year	avg_number_hosp_patients	avg_number_hosp_patients_previo
 */
 
 
-
 -- 5
 -- Rank the countries per continent based on the percentage of the population that is fully vaccinated. 
 -- The ranking shows the countries with the highest percentage of fully vaccinated people at the top and the countries with the lowest percentage at the bottom.
+
+with percentage_vaccinated as (select Countries.country,
+                                      continent,
+                                      population,
+                                      cast(max(people_fully_vaccinated) as numeric) / population as percentage_fully_vaccinated
+                               from Countries
+                                        right join CovidData on Countries.iso_code = CovidData.iso_code
+                               group by Countries.country, population, continent)
+select *, dense_rank() over ( partition by continent order by percentage_fully_vaccinated desc) as rankNumber
+from percentage_vaccinated;
+
 --iso_code	country	continent	percentage fully vaccinated	ranking
 --MUS	Mauritius	Africa	83.74%	1
 --SYC	Seychelles	Africa	78.00%	2
@@ -144,6 +233,32 @@ report_week	report_year	avg_number_hosp_patients	avg_number_hosp_patients_previo
 -- Only those countries whose population is not NULL and the gdp_per_capita is not NULL are included in the overview
 -- Note that the countries are sorted in descending order by wealth_land
 
+with wealth_per_country as (select country,
+                                   cast(population * gdp_per_capita as numeric) / 1000000 as rijkdom_land,
+                                   population
+                            from Countries
+                            where population is not null
+                              and gdp_per_capita is not null),
+     B as
+         (select country,
+                 dense_rank() over ( order by rijkdom_land desc)      as nummer_land,
+                 count(country) over ( )                              as totaal_aantal_landen,
+                 sum(rijkdom_land) over ( order by rijkdom_land desc) as cumulatieve_som_rijkdom,
+                 sum(rijkdom_land) over ( )                           as totale_rijkdom_wereldwijd,
+                 population / 100                                     as population,
+                 sum(population / 100) over ( )                       as totalpopulation
+          from wealth_per_country)
+select country,
+       nummer_land,
+       totaal_aantal_landen,
+       cumulatieve_som_rijkdom,
+       totale_rijkdom_wereldwijd,
+       format(cast(sum(population) over ( order by nummer_land ) as numeric) / totalpopulation,
+              'p') as percentage_population,
+       population
+from B;
+
+
 --country	rijkdom_land	nummer_land	totaal_aantal_landen	cumulatieve_som_rijkdom	totale_rijkdom_wereldwijd	percentage_landen	percentage_rijkdom
 --China	2,18285E+07	1	236	21828498	113458210,253098	0.42%	19.24%
 --United States	1,834392E+07	2	236	40172416	113458210,253098	0.85%	35.41%
@@ -157,7 +272,6 @@ report_week	report_year	avg_number_hosp_patients	avg_number_hosp_patients_previo
 --France	2617966	10	236	72890078,75	113458210,253098	4.24%	64.24%
 --Mexico	2210471	11	236	75100549,75	113458210,253098	4.66%	66.19%
 --Turkey	2144570	12	236	77245119,25	113458210,253098	5.08%	68.08%
-
 
 
 -- 7
@@ -177,3 +291,20 @@ report_week	report_year	avg_number_hosp_patients	avg_number_hosp_patients_previo
 --URY	Uruguay	South America	2021-08-06 00:00:00.000	1	9
 --KHM	Cambodia	Asia	2021-08-09 00:00:00.000	5	10
 
+with enoughBoostered as (select CovidData.iso_code,
+                                CovidData.country,
+                                continent,
+                                report_date,
+                                cast(total_boosters as numeric) / population as percentage_boostered
+                         from CovidData
+                                  left join Countries on CovidData.iso_code = Countries.iso_code
+                         where cast(total_boosters as numeric) / population >= 0.001),
+     firstDays as
+         (select iso_code, country, continent, min(report_date) as firstDay
+          from enoughBoostered
+          group by iso_code, country, continent)
+select *,
+       dense_rank() over ( partition by continent order by firstDay ) as ranking_continent,
+       dense_rank() over ( order by firstDay )                        as ranking_world
+from firstDays
+order by firstDay
